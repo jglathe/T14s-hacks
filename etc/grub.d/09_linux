@@ -176,6 +176,12 @@ linux_entry ()
   type="$3"
   args="$4"
 
+  cutmem_line=""
+
+  if dmidecode -s system-product-name | grep -q "21N1CTO1WW"; then
+        cutmem_line="cutmem 0x8800000000 0x8fffffffff"
+  fi
+
   if [ -z "$boot_device_id" ]; then
       boot_device_id="$(grub_get_device_id "${GRUB_DEVICE}")"
   fi
@@ -195,7 +201,7 @@ linux_entry ()
       echo "menuentry '$(echo "$title" | grub_quote)' ${CLASS} \$menuentry_id_option 'gnulinux-$version-$type-$boot_device_id' {" | sed "s/^/$submenu_indentation/"
   else
       echo "menuentry '$(echo "$os" | grub_quote)' ${CLASS} \$menuentry_id_option 'gnulinux-simple-$boot_device_id' {" | sed "s/^/$submenu_indentation/"
-  fi      
+  fi
   if [ "$quick_boot" = 1 ]; then
       echo "	recordfail" | sed "s/^/$submenu_indentation/"
   fi
@@ -258,6 +264,7 @@ EOF
       sed "s/^/$submenu_indentation/" << EOF
 	if [ "\${initrdfail}" = 1 ]; then
 		echo	'$(echo "$initrdlessfail_msg" | grub_quote)'
+		${cutmem_line}
 		linux	${rel_dirname}/${basename} root=${linux_root_device_thisversion} ro ${args}
 EOF
       if [ x"$quiet_boot" = x0 ] || [ x"$type" != xsimple ]; then
@@ -269,6 +276,7 @@ EOF
 		initrd	$(echo $initrd_path)
 	else
 		echo	'$(echo "$initrdlesstry_msg" | grub_quote)'
+		${cutmem_line}
 		linux	${rel_dirname}/${basename} root=${linux_root_device_thisversion} ro ${args} panic=-1
 EOF
       if [ -n "$initrd_path_only_early" ]; then
@@ -283,6 +291,7 @@ EOF
   else
   # We don't have initrd or we don't want to set PARTUUID. Don't try initrd-less boot with fallback.
       sed "s/^/$submenu_indentation/" << EOF
+	${cutmem_line}
 	linux	${rel_dirname}/${basename} root=${linux_root_device_thisversion} ro ${args}
 EOF
       if test -n "${initrd}"; then
@@ -321,7 +330,7 @@ case "x$machine" in
 	for i in /boot/vmlinuz-* /vmlinuz-* /boot/kernel-* ; do
 	    if grub_file_is_not_garbage "$i" ; then list="$list $i" ; fi
 	done ;;
-    *) 
+    *)
 	list=
 	for i in /boot/vmlinuz-* /boot/vmlinux-* /vmlinuz-* /vmlinux-* /boot/kernel-* ; do
                   if grub_file_is_not_garbage "$i" ; then list="$list $i" ; fi
@@ -500,7 +509,7 @@ for linux in ${reverse_sorted_list}; do
     "${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}"
 
     submenu_indentation="$grub_tab"
-    
+
     if [ -z "$boot_device_id" ]; then
 	boot_device_id="$(grub_get_device_id "${GRUB_DEVICE}")"
     fi
